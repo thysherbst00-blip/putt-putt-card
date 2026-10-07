@@ -111,9 +111,12 @@ button{cursor:pointer}
 
   function $(id) { return document.getElementById(id); }
 
+  /* The folder this page sits in, which is where the scorecard lives. Hosts
+     rewrite file names (Cloudflare serves poster.html as /poster), so resolve
+     the directory instead of trimming a name that may not be there. */
   var target = (function () {
     if (location.protocol === 'file:') { return ''; }
-    return (location.origin + location.pathname).replace(/poster\.html$/, '');
+    try { return new URL('./', location.href).href; } catch (e) { return ''; }
   })();
 
   if (!target) {
