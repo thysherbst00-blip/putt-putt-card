@@ -1,0 +1,14 @@
+{
+  "name": "Putt Putt Scorecard",
+  "short_name": "Putt Putt",
+  "description": "Scan to score a round of putt putt: names, strokes per hole, totals and a winner.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF2EA",
+  "theme_color": "#0F3D2E",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

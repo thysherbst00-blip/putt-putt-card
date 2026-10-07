@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Putt Putt Scorecard</title>
+<meta name="description" content="Scan to score a round of putt putt: capture names, tap the strokes played, then see totals, par difference and the winner.">
+<meta name="theme-color" content="#0F3D2E" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#081611" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Putt Putt">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Hanken+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: one-screen phone app - dark turf top bar, scrolling body, action bar pinned at the foot */
+:root{
+  --ground:#EEF2EA; --paper:#FFFFFF; --cell:#F3F7F2;
+  --ink:#10251A; --ink-soft:#5C6F62; --line:#D7E2D8;
+  --turf:#1C7A4D; --deep:#0F3D2E; --deep-2:#15503C; --deep-line:#2C6B52; --on-deep:#FFFFFF; --sub-deep:#A8C4B3;
+  --tint:#DCEBE0; --tint-ink:#0F5A37;
+  --flag:#C9431C; --flag-ink:#FFFFFF; --flag-tint:#FBE1D7; --flag-tint-ink:#A8391A;
+  --ball:#F4C13D; --ball-ink:#10251A;
+  --display:'Bowlby One SC', Impact, system-ui, sans-serif;
+  --body:'Hanken Grotesk', 'Avenir Next', system-ui, sans-serif;
+  --mono:'DM Mono', ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1612; --paper:#132019; --cell:#1A2A21;
+    --ink:#E8F2EA; --ink-soft:#93A89A; --line:#26382D;
+    --turf:#3FB978; --deep:#081611; --deep-2:#14281E; --deep-line:#27402F; --on-deep:#F2FAF4; --sub-deep:#8FA899;
+    --tint:#1B3A2A; --tint-ink:#8ADCAE;
+    --flag:#FF7A52; --flag-ink:#190F0A; --flag-tint:#3A2017; --flag-tint-ink:#FFA183;
+    --ball:#F4C13D; --ball-ink:#10251A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1612; --paper:#132019; --cell:#1A2A21;
+  --ink:#E8F2EA; --ink-soft:#93A89A; --line:#26382D;
+  --turf:#3FB978; --deep:#081611; --deep-2:#14281E; --deep-line:#27402F; --on-deep:#F2FAF4; --sub-deep:#8FA899;
+  --tint:#1B3A2A; --tint-ink:#8ADCAE;
+  --flag:#FF7A52; --flag-ink:#190F0A; --flag-tint:#3A2017; --flag-tint-ink:#FFA183;
+  --ball:#F4C13D; --ball-ink:#10251A;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;-webkit-text-size-adjust:100%;overscroll-behavior-y:contain}
+img{max-width:100%}
+[hidden]{display:none !important}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
+
+#app{height:100%;max-width:560px;margin-inline:auto;display:flex;flex-direction:column;background:var(--ground)}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+.screen[hidden]{display:none !important}
+
+.topbar{background:var(--deep);color:var(--on-deep);padding:calc(20px + env(safe-area-inset-top, 0px)) 16px 15px;display:flex;flex-direction:column;gap:12px}
+.lockup{display:flex;align-items:center;gap:11px}
+.lockup .name{font-family:var(--display);font-size:20px;line-height:1;letter-spacing:.3px}
+.lockup .sub{font-family:var(--mono);font-size:9.5px;letter-spacing:2.4px;color:var(--ball);margin-top:3px}
+.blurb{margin:0;font-size:13.5px;line-height:1.45;color:var(--sub-deep)}
+
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.bottombar{background:var(--paper);border-top:1px solid var(--line);padding:12px 16px calc(14px + env(safe-area-inset-bottom, 0px));display:flex;flex-direction:column;gap:9px}
+.row{display:flex;gap:9px}
+.row > *{min-width:0}
+
+.btn{height:52px;border:none;border-radius:26px;background:var(--flag);color:var(--flag-ink);font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;width:100%}
+.btn[disabled]{opacity:.45}
+.btn.ghost{background:var(--paper);border:1px solid var(--line);color:var(--ink);font-size:15px;font-weight:600}
+.btn.small{height:46px;font-size:15px;border-radius:23px}
+.btn.wide{flex:1}
+.btn.narrow{flex:none;width:122px}
+
+.lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:1.6px;color:var(--ink-soft)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px}
+.card.pad{padding:14px;display:flex;flex-direction:column;gap:11px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field input{height:48px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);font-size:16px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px}
+.setrow + .setrow{border-top:1px solid var(--line)}
+.setrow .what{font-size:14.5px;font-weight:600}
+.seg{display:flex;gap:6px}
+.seg button{min-width:46px;height:44px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:15px;font-weight:600;color:var(--ink-soft)}
+.seg button[aria-pressed="true"]{background:var(--turf);border-color:var(--turf);color:#FFFFFF;font-weight:700}
+
+.prow{display:flex;align-items:center;gap:9px}
+.dot-av{width:36px;height:36px;flex:none;border-radius:50%;background:var(--tint);color:var(--tint-ink);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.prow input{flex:1;min-width:0;height:44px;padding:0 4px;border:none;border-bottom:1px solid var(--line);background:transparent;font-size:16px;font-weight:600}
+.iconbtn{width:44px;height:44px;flex:none;border:none;background:transparent;color:var(--ink-soft);font-size:20px;line-height:1;border-radius:10px}
+.add{height:48px;border:1px dashed var(--line);border-radius:12px;background:var(--cell);font-size:15px;font-weight:600;color:var(--turf);width:100%}
+
+.banner{background:var(--tint);border-radius:14px;padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+.banner .head{font-size:14px;font-weight:700;color:var(--tint-ink)}
+.banner .meta{font-family:var(--mono);font-size:11px;color:var(--tint-ink);opacity:.85}
+
+.hole-h{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.hole-n{font-family:var(--display);font-size:33px;line-height:.9}
+.hole-of{font-family:var(--mono);font-size:11px;color:var(--sub-deep);padding-bottom:3px}
+.parchip{background:var(--ball);color:var(--ball-ink);font-family:var(--mono);font-size:10.5px;letter-spacing:.6px;padding:4px 8px;border-radius:6px;margin-bottom:2px}
+.deepbtn{width:44px;height:44px;flex:none;border:1px solid var(--deep-line);border-radius:12px;background:var(--deep-2);display:flex;align-items:center;justify-content:center;color:var(--on-deep)}
+.dots{display:flex;gap:3px;align-items:center}
+.dots span{flex:1;height:8px;border-radius:6px;background:rgba(255,255,255,.2)}
+.dots span.done{background:#7FD3A5}
+.dots span.now{height:12px;background:var(--flag)}
+.standings{font-family:var(--mono);font-size:11.5px;letter-spacing:.5px;color:var(--sub-deep);min-height:15px}
+
+.pcard{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:13px 13px 14px;display:flex;flex-direction:column;gap:11px}
+.pcard .top{display:flex;align-items:center;gap:9px}
+.pname{flex:1;min-width:0;font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tot{display:flex;flex-direction:column;align-items:flex-end;min-width:44px}
+.tot b{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums}
+.tot span{font-family:var(--mono);font-size:9px;letter-spacing:.8px;color:var(--ink-soft)}
+.chip{font-family:var(--mono);font-size:11px;padding:4px 7px;border-radius:6px;background:var(--cell);color:var(--ink-soft)}
+.chip.under{background:var(--tint);color:var(--tint-ink)}
+.chip.over{background:var(--flag-tint);color:var(--flag-tint-ink)}
+.ace{background:var(--ball);color:var(--ball-ink);font-family:var(--mono);font-size:9.5px;letter-spacing:1px;padding:4px 7px;border-radius:5px}
+.pills{display:flex;gap:6px}
+.pill{flex:1;min-width:0;height:46px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);display:flex;align-items:center;justify-content:center}
+.pill[aria-pressed="true"]{background:var(--flag);border-color:var(--flag);color:var(--flag-ink)}
+.pill.more{font-size:14px;font-weight:600;color:var(--ink-soft)}
+.clearline{display:flex;justify-content:flex-end}
+.clear{height:34px;padding:0 10px;border:none;background:transparent;color:var(--ink-soft);font-size:12.5px;font-weight:600;text-decoration:underline;border-radius:8px}
+.hint{display:flex;align-items:center;gap:9px;background:var(--cell);border-radius:14px;padding:11px 13px;font-size:12.5px;line-height:1.4;color:var(--ink-soft)}
+.note{margin:0;font-size:12.5px;color:var(--ink-soft)}
+
+.hero{background:var(--deep);color:var(--on-deep);padding:calc(22px + env(safe-area-inset-top, 0px)) 16px 22px;display:flex;flex-direction:column;gap:13px}
+.hero .eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;color:var(--sub-deep)}
+.hero .main{display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
+.hero .who{font-family:var(--display);font-size:26px;line-height:1}
+.hero .wsub{font-family:var(--mono);font-size:11px;color:var(--ball);margin-top:8px}
+.hero .big{font-family:var(--display);font-size:56px;line-height:.85;color:var(--ball);font-variant-numeric:tabular-nums;text-align:right}
+.hero .biglbl{font-family:var(--mono);font-size:9.5px;letter-spacing:1.6px;color:var(--sub-deep);text-align:right}
+
+.brow{display:flex;align-items:center;gap:11px;padding:13px}
+.brow + .brow{border-top:1px solid var(--line)}
+.pos{width:28px;height:28px;flex:none;border-radius:50%;background:var(--cell);color:var(--ink-soft);font-family:var(--mono);font-size:13px;display:flex;align-items:center;justify-content:center}
+.pos.first{background:var(--ball);color:var(--ball-ink)}
+.bwho{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.bwho b{font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bwho span{font-family:var(--mono);font-size:10px;letter-spacing:.6px;color:var(--ink-soft)}
+.bscore{font-family:var(--mono);font-size:23px;font-weight:500;min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:11px 10px;display:flex;flex-direction:column;gap:4px}
+.tile b{font-family:var(--mono);font-size:21px;font-weight:500;font-variant-numeric:tabular-nums}
+.tile span{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--ink-soft);line-height:1.35}
+
+.block{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:11px 11px 13px;display:flex;flex-direction:column;gap:5px}
+.crow{display:flex;gap:2px;align-items:center}
+.cname{width:50px;flex:none;font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cnum{flex:1;min-width:0;text-align:center;font-family:var(--mono);font-size:10px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.cell{flex:1;min-width:0;height:30px;border:none;border-radius:6px;background:var(--cell);color:var(--ink);font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;display:flex;align-items:center;justify-content:center;padding:0}
+.cell.ace{background:var(--ball);color:var(--ball-ink);font-weight:500}
+.cell.over{background:var(--flag-tint);color:var(--flag-tint-ink)}
+.cell.empty{color:var(--ink-soft);opacity:.65}
+.cell.parcell{background:transparent;color:var(--ink-soft);font-size:12px}
+.csum{width:34px;flex:none;height:30px;border-radius:6px;background:var(--tint);color:var(--tint-ink);font-family:var(--mono);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.csum.flat{background:transparent;color:var(--ink-soft);font-size:12px;font-weight:400}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:0 2px;font-size:11.5px;color:var(--ink-soft)}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+
+.qrwrap{display:flex;flex-direction:column;gap:11px;align-items:center}
+.qrbox{background:#FFFFFF;padding:12px;border-radius:12px;line-height:0}
+.qrbox img,.qrbox canvas{display:block;width:196px;height:196px}
+.urltext{font-family:var(--mono);font-size:11px;color:var(--ink-soft);word-break:break-all;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- SET UP -->
+  <section class="screen" id="s-setup">
+    <header class="topbar">
+      <div class="lockup">
+        <svg width="34" height="34" viewBox="0 0 30 30" aria-hidden="true">
+          <ellipse cx="15" cy="24" rx="9.5" ry="3.4" fill="#06221A" stroke="#F4C13D" stroke-width="1.4"/>
+          <path d="M13.5 23.5 V5.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+          <path d="M14.4 5.8 L24 9 L14.4 12.4 Z" fill="#E2562B"/>
+          <circle cx="22.6" cy="22.2" r="3.1" fill="#FFFFFF"/>
+        </svg>
+        <div>
+          <div class="name">PUTT PUTT</div>
+          <div class="sub">SCORECARD</div>
+        </div>
+      </div>
+      <p class="blurb">Set the round up once. The card stays on this phone, signal or not.</p>
+    </header>
+
+    <div class="scroll">
+      <div class="banner" id="resume" hidden>
+        <div class="head" id="resumeHead">Round in progress</div>
+        <div class="meta" id="resumeMeta"></div>
+        <div class="row">
+          <button class="btn small wide" id="resumeGo" type="button">Carry on</button>
+          <button class="btn small ghost narrow" id="resumeDrop" type="button">Discard</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="course">COURSE</label>
+        <input id="course" type="text" placeholder="Where are you playing?" autocomplete="off">
+      </div>
+
+      <div class="card">
+        <div class="setrow">
+          <span class="what">Holes</span>
+          <div class="seg" id="seg-holes" role="group" aria-label="Number of holes">
+            <button type="button" data-v="9" aria-pressed="false">9</button>
+            <button type="button" data-v="12" aria-pressed="false">12</button>
+            <button type="button" data-v="18" aria-pressed="true">18</button>
+          </div>
+        </div>
+        <div class="setrow">
+          <span class="what">Par per hole</span>
+          <div class="seg" id="seg-par" role="group" aria-label="Par per hole">
+            <button type="button" data-v="2" aria-pressed="true">2</button>
+            <button type="button" data-v="3" aria-pressed="false">3</button>
+          </div>
+        </div>
+        <div class="setrow">
+          <span class="what">Pick up after</span>
+          <div class="seg" id="seg-cap" role="group" aria-label="Maximum strokes per hole">
+            <button type="button" data-v="5" aria-pressed="false">5</button>
+            <button type="button" data-v="6" aria-pressed="true">6</button>
+            <button type="button" data-v="0" aria-pressed="false">Never</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card pad">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span class="lbl">PLAYERS</span>
+          <span class="lbl" id="pcount">0 OF 8</span>
+        </div>
+        <div id="players" style="display:flex;flex-direction:column;gap:9px"></div>
+        <button class="add" id="addPlayer" type="button">+ Add player</button>
+      </div>
+
+      <div class="card pad">
+        <span class="lbl">SHARE THE CARD</span>
+        <p class="note">Point a phone camera at this code to open the scorecard. Print it, or keep it at the kiosk.</p>
+        <div class="qrwrap">
+          <div class="qrbox" id="qrbox"></div>
+          <div class="urltext" id="urltext"></div>
+          <button class="btn ghost small" id="copyUrl" type="button" style="width:auto;padding:0 18px">Copy link</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bottombar">
+      <button class="btn" id="start" type="button">Start round</button>
+      <p class="note" style="text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.4px">SAVES AS YOU GO ON THIS PHONE</p>
+    </footer>
+  </section>
+
+  <!-- PLAY -->
+  <section class="screen" id="s-play" hidden>
+    <header class="topbar">
+      <div class="hole-h">
+        <div style="display:flex;align-items:flex-end;gap:9px">
+          <span class="hole-n" id="holeN">HOLE 1</span>
+          <span class="hole-of" id="holeOf">OF 18</span>
+          <span class="parchip" id="parChip">PAR 2</span>
+        </div>
+        <button class="deepbtn" id="toCard" type="button" aria-label="View the full card">
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <rect x="2.5" y="3.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M2.5 8H17.5M7.5 8V16.5M12.5 8V16.5" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+        </button>
+      </div>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <div class="standings" id="standings"></div>
+    </header>
+
+    <div class="scroll">
+      <p class="note" id="playHint">Tap the strokes each player took.</p>
+      <div id="cards" style="display:flex;flex-direction:column;gap:12px"></div>
+      <div class="hint" id="capHint"></div>
+    </div>
+
+    <footer class="bottombar">
+      <div class="row">
+        <button class="btn ghost narrow" id="prev" type="button">&larr; Back</button>
+        <button class="btn wide" id="next" type="button">Next hole &rarr;</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- CARD -->
+  <section class="screen" id="s-card" hidden>
+    <header class="topbar">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <span style="font-family:var(--display);font-size:21px;line-height:1">ROUND CARD</span>
+        <span class="standings" id="cardMeta"></span>
+      </div>
+    </header>
+    <div class="scroll" id="cardBody"></div>
+    <footer class="bottombar">
+      <div class="row">
+        <button class="btn ghost narrow" id="cardBack" type="button">&larr; Back</button>
+        <button class="btn wide" id="cardCopy" type="button">Copy results</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="screen" id="s-sum" hidden>
+    <header class="hero">
+      <div class="eyebrow" id="sumEyebrow"></div>
+      <div class="main">
+        <div>
+          <div class="who" id="sumWho"></div>
+          <div class="wsub" id="sumSub"></div>
+        </div>
+        <div>
+          <div class="big" id="sumBig"></div>
+          <div class="biglbl">STROKES</div>
+        </div>
+      </div>
+    </header>
+    <div class="scroll">
+      <div class="card" id="board"></div>
+      <div class="tiles" id="tiles"></div>
+      <p class="note" id="sumNote"></p>
+    </div>
+    <footer class="bottombar">
+      <button class="btn" id="sumCard" type="button">See the full card</button>
+      <div class="row">
+        <button class="btn ghost small wide" id="sumEdit" type="button">Fix a score</button>
+        <button class="btn ghost small wide" id="sumNew" type="button">New round</button>
+      </div>
+    </footer>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* The page works out its own address, so the QR code is right on any host. */
+  var APP_URL = (function () {
+    if (location.protocol === 'file:') { return ''; }
+    return (location.origin + location.pathname).replace(/\/index\.html$/, '/');
+  })();
+  var LS = 'puttputt.round.v1';
+  var MAX_PLAYERS = 8;
+  var R = null;
+  var cardFrom = 'play';
+  var wakeLock = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function initial(name) { return (String(name).trim()[0] || '?').toUpperCase(); }
+
+  /* ---------- scoring maths ---------- */
+  function total(p) { return p.scores.reduce(function (a, v) { return a + (v || 0); }, 0); }
+  function played(p) { return p.scores.filter(function (v) { return v != null; }).length; }
+  function diff(p) { return total(p) - R.par * played(p); }
+  function aces(p) { return p.scores.filter(function (v) { return v === 1; }).length; }
+  function diffLabel(d) { return d === 0 ? 'LEVEL' : (d > 0 ? '+' + d : '−' + Math.abs(d)); }
+  function diffClass(d) { return d === 0 ? '' : (d > 0 ? 'over' : 'under'); }
+
+  function holeOutcomes() {
+    var won = {}, tied = 0;
+    R.players.forEach(function (p) { won[p.id] = 0; });
+    for (var h = 0; h < R.holes; h++) {
+      var vals = R.players.map(function (p) { return p.scores[h]; });
+      if (vals.some(function (v) { return v == null; })) { continue; }
+      var min = Math.min.apply(null, vals);
+      var low = R.players.filter(function (p) { return p.scores[h] === min; });
+      if (low.length === 1) { won[low[0].id] += 1; } else { tied += 1; }
+    }
+    return { won: won, tied: tied };
+  }
+
+  function ranked() {
+    return R.players.slice().sort(function (a, b) {
+      var pa = played(a), pb = played(b);
+      if (pa === 0 && pb === 0) { return 0; }
+      if (pa === 0) { return 1; }
+      if (pb === 0) { return -1; }
+      return total(a) - total(b);
+    });
+  }
+
+  /* ---------- storage ---------- */
+  function save() {
+    if (!R) { return; }
+    try { localStorage.setItem(LS, JSON.stringify(R)); } catch (e) { /* private mode */ }
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(LS);
+      if (!raw) { return null; }
+      var r = JSON.parse(raw);
+      if (!r || !r.players || !r.players.length || !r.holes) { return null; }
+      return r;
+    } catch (e) { return null; }
+  }
+  function wipe() { try { localStorage.removeItem(LS); } catch (e) {} }
+
+  /* ---------- screens ---------- */
+  function show(which) {
+    ['setup', 'play', 'card', 'sum'].forEach(function (k) {
+      $('s-' + k).hidden = (k !== which);
+    });
+    var sc = document.querySelector('#s-' + which + ' .scroll');
+    if (sc) { sc.scrollTop = 0; }
+    if (which === 'play') { keepAwake(); } else { releaseWake(); }
+  }
+
+  function keepAwake() {
+    if (wakeLock || !navigator.wakeLock) { return; }
+    navigator.wakeLock.request('screen').then(function (l) {
+      wakeLock = l;
+      l.addEventListener('release', function () { wakeLock = null; });
+    }).catch(function () { /* not granted, no matter */ });
+  }
+  function releaseWake() {
+    if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+  }
+
+  /* ---------- set-up screen ---------- */
+  function segValue(id) {
+    var on = $(id).querySelector('[aria-pressed="true"]');
+    return on ? parseInt(on.dataset.v, 10) : 0;
+  }
+  function wireSeg(id) {
+    $(id).addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (!b) { return; }
+      Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+    });
+  }
+
+  function playerRow(name, idx) {
+    var d = document.createElement('div');
+    d.className = 'prow';
+    d.innerHTML =
+      '<span class="dot-av" aria-hidden="true">' + esc(initial(name || String(idx + 1))) + '</span>' +
+      '<label class="lbl" for="pn' + idx + '" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Player ' + (idx + 1) + ' name</label>' +
+      '<input id="pn' + idx + '" type="text" autocomplete="off" placeholder="Player ' + (idx + 1) + '">' +
+      '<button class="iconbtn" type="button" aria-label="Remove player ' + (idx + 1) + '">&times;</button>';
+    var input = d.querySelector('input');
+    input.value = name || '';
+    input.addEventListener('input', function () {
+      d.querySelector('.dot-av').textContent = initial(input.value || String(idx + 1));
+    });
+    d.querySelector('.iconbtn').addEventListener('click', function () {
+      var names = readNames();
+      names.splice(idx, 1);
+      if (!names.length) { names = ['']; }
+      renderPlayers(names);
+    });
+    return d;
+  }
+
+  function readNames() {
+    return Array.prototype.map.call($('players').querySelectorAll('input'), function (i) { return i.value; });
+  }
+
+  function renderPlayers(names) {
+    var box = $('players');
+    box.innerHTML = '';
+    names.forEach(function (n, i) { box.appendChild(playerRow(n, i)); });
+    $('pcount').textContent = names.length + ' OF ' + MAX_PLAYERS;
+    $('addPlayer').disabled = names.length >= MAX_PLAYERS;
+    $('addPlayer').style.opacity = names.length >= MAX_PLAYERS ? '.45' : '1';
+  }
+
+  function renderResume() {
+    var r = load();
+    if (!r) { $('resume').hidden = true; return; }
+    $('resume').hidden = false;
+    var names = r.players.map(function (p) { return p.name; }).join(', ');
+    if (r.done) {
+      $('resumeHead').textContent = 'Last round is finished';
+      $('resumeMeta').textContent = names.toUpperCase() + ' · ' + r.holes + ' HOLES';
+      $('resumeGo').textContent = 'See the summary';
+    } else {
+      $('resumeHead').textContent = 'Round in progress';
+      $('resumeMeta').textContent = 'HOLE ' + (r.hole + 1) + ' OF ' + r.holes + ' · ' + names.toUpperCase();
+      $('resumeGo').textContent = 'Carry on';
+    }
+  }
+
+  function startRound() {
+    var names = readNames().map(function (n, i) { return n.trim() || 'Player ' + (i + 1); });
+    var holes = segValue('seg-holes');
+    R = {
+      course: $('course').value.trim(),
+      holes: holes,
+      par: segValue('seg-par'),
+      cap: segValue('seg-cap'),
+      hole: 0,
+      done: false,
+      players: names.map(function (n, i) {
+        return { id: 'p' + i + '-' + Date.now().toString(36), name: n, scores: new Array(holes).fill(null) };
+      })
+    };
+    save();
+    renderPlay();
+    show('play');
+  }
+
+  /* ---------- play screen ---------- */
+  function renderPlay() {
+    var h = R.hole;
+    $('holeN').textContent = 'HOLE ' + (h + 1);
+    $('holeOf').textContent = 'OF ' + R.holes;
+    $('parChip').textContent = 'PAR ' + R.par;
+
+    var dots = '';
+    for (var i = 0; i < R.holes; i++) {
+      var scored = R.players.some(function (p) { return p.scores[i] != null; });
+      var cls = i === h ? 'now' : (scored ? 'done' : '');
+      dots += '<span class="' + cls + '"></span>';
+    }
+    $('dots').innerHTML = dots;
+
+    var order = ranked().filter(function (p) { return played(p) > 0; });
+    $('standings').textContent = order.length
+      ? order.map(function (p) { return p.name.toUpperCase() + ' ' + total(p) + ' ' + diffLabel(diff(p)); }).join('  ·  ')
+      : 'NO STROKES CAPTURED YET';
+
+    var max = R.cap || 6;
+    var html = '';
+    R.players.forEach(function (p) {
+      var v = p.scores[h];
+      var d = diff(p);
+      var pills = '';
+      for (var n = 1; n <= max; n++) {
+        pills += '<button class="pill" type="button" data-id="' + p.id + '" data-v="' + n + '"' +
+          ' aria-pressed="' + (v === n) + '" aria-label="' + n + (n === 1 ? ' stroke for ' : ' strokes for ') + esc(p.name) + '">' + n + '</button>';
+      }
+      if (!R.cap) {
+        var moreOn = v != null && v > max;
+        pills += '<button class="pill more" type="button" data-id="' + p.id + '" data-v="more"' +
+          ' aria-pressed="' + moreOn + '" aria-label="More than ' + max + ' strokes for ' + esc(p.name) + '">' +
+          (moreOn ? v : (max + 1) + '+') + '</button>';
+      }
+      html +=
+        '<div class="pcard">' +
+          '<div class="top">' +
+            '<span class="dot-av" aria-hidden="true">' + esc(initial(p.name)) + '</span>' +
+            '<span class="pname">' + esc(p.name) + '</span>' +
+            (v === 1 ? '<span class="ace">ACE</span>' : '') +
+            (played(p) ? '<span class="chip ' + diffClass(d) + '">' + diffLabel(d) + '</span>' : '') +
+            '<span class="tot"><b>' + (played(p) ? total(p) : '–') + '</b><span>THRU ' + played(p) + '</span></span>' +
+          '</div>' +
+          '<div class="pills">' + pills + '</div>' +
+          (v != null ? '<div class="clearline"><button class="clear" type="button" data-id="' + p.id + '" data-v="clear">Clear this hole</button></div>' : '') +
+        '</div>';
+    });
+    $('cards').innerHTML = html;
+
+    var scored2 = R.players.filter(function (p) { return p.scores[h] != null; }).length;
+    $('playHint').textContent = scored2 === R.players.length
+      ? 'All ' + R.players.length + ' in. Tap a number again to change it.'
+      : scored2 + ' of ' + R.players.length + ' scored on this hole.';
+
+    var icon = '<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" style="flex:none"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 5.2V9.6M9 12.3v.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
+    $('capHint').innerHTML = R.cap
+      ? icon + '<span>House rule: pick the ball up after ' + R.cap + ' and write down ' + R.cap + '.</span>'
+      : icon + '<span>No pick-up limit. Tap ' + (max + 1) + '+ again to keep counting past ' + (max + 1) + '.</span>';
+
+    $('prev').disabled = h === 0;
+    $('next').textContent = h === R.holes - 1 ? 'Finish round' : 'Hole ' + (h + 2) + ' →';
+  }
+
+  function setScore(id, raw) {
+    var p = R.players.filter(function (x) { return x.id === id; })[0];
+    if (!p) { return; }
+    var h = R.hole;
+    var cur = p.scores[h];
+    if (raw === 'clear') {
+      p.scores[h] = null;
+    } else if (raw === 'more') {
+      var max = R.cap || 6;
+      p.scores[h] = (cur != null && cur > max) ? Math.min(cur + 1, 20) : max + 1;
+    } else {
+      var n = parseInt(raw, 10);
+      p.scores[h] = cur === n ? null : n;
+    }
+    save();
+    renderPlay();
+  }
+
+  /* ---------- card screen ---------- */
+  function blocks() {
+    if (R.holes <= 9) { return [{ label: 'HOLES 1 – ' + R.holes, short: 'TOT', from: 0, to: R.holes }]; }
+    var half = Math.ceil(R.holes / 2);
+    return [
+      { label: 'OUT · HOLES 1 – ' + half, short: 'OUT', from: 0, to: half },
+      { label: 'IN · HOLES ' + (half + 1) + ' – ' + R.holes, short: 'IN', from: half, to: R.holes }
+    ];
+  }
+
+  function renderCard() {
+    $('cardMeta').textContent =
+      (R.course ? R.course.toUpperCase() + ' · ' : '') + R.holes + ' HOLES · PAR ' + R.par + ' A HOLE · ' + R.players.length + ' PLAYERS';
+
+    var html = '';
+    blocks().forEach(function (b) {
+      var span = b.to - b.from;
+      var nums = '<div class="crow"><span class="cname"></span>';
+      for (var h = b.from; h < b.to; h++) { nums += '<span class="cnum">' + (h + 1) + '</span>'; }
+      nums += '<span class="csum flat">' + b.short + '</span></div>';
+
+      var par = '<div class="crow"><span class="cname">PAR</span>';
+      for (var i = b.from; i < b.to; i++) { par += '<span class="cell parcell">' + R.par + '</span>'; }
+      par += '<span class="csum flat">' + (R.par * span) + '</span></div>';
+
+      var rows = '';
+      R.players.forEach(function (p) {
+        rows += '<div class="crow"><span class="cname">' + esc(p.name.toUpperCase()) + '</span>';
+        var sub = 0;
+        for (var h2 = b.from; h2 < b.to; h2++) {
+          var v = p.scores[h2];
+          var cls = v == null ? 'empty' : (v === 1 ? 'ace' : (v > R.par ? 'over' : ''));
+          if (v != null) { sub += v; }
+          rows += '<button class="cell ' + cls + '" type="button" data-hole="' + h2 + '"' +
+            ' aria-label="' + esc(p.name) + ', hole ' + (h2 + 1) + (v == null ? ', not scored' : ', ' + v) + '">' +
+            (v == null ? '·' : v) + '</button>';
+        }
+        rows += '<span class="csum">' + sub + '</span></div>';
+      });
+
+      html += '<div class="block"><div class="lbl">' + b.label + '</div>' + nums + par + rows + '</div>';
+    });
+
+    html += '<div class="card pad"><span class="lbl">TOTALS</span>';
+    ranked().forEach(function (p) {
+      html += '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span style="flex:1;min-width:0;font-size:15px;font-weight:600">' + esc(p.name) + '</span>' +
+        (played(p) ? '<span class="chip ' + diffClass(diff(p)) + '">' + diffLabel(diff(p)) + '</span>' : '') +
+        '<span style="font-family:var(--mono);font-size:18px;min-width:32px;text-align:right">' + (played(p) ? total(p) : '–') + '</span></div>';
+    });
+    html += '</div>';
+
+    html += '<div class="legend">' +
+      '<span><span class="sw" style="background:var(--ball)"></span>Hole in one</span>' +
+      '<span><span class="sw" style="background:var(--flag-tint)"></span>Over par</span>' +
+      '<span><span class="sw" style="background:var(--cell)"></span>Par or better</span></div>' +
+      '<p class="note">Tap any score to jump back to that hole.</p>';
+
+    $('cardBody').innerHTML = html;
+  }
+
+  /* ---------- summary ---------- */
+  function resultsText() {
+    var lines = [];
+    lines.push('Putt putt' + (R.course ? ' · ' + R.course : '') + ' · ' + R.holes + ' holes, par ' + R.par);
+    ranked().forEach(function (p, i) {
+      if (!played(p)) { lines.push((i + 1) + '. ' + p.name + ' - no scores'); return; }
+      var bits = [(i + 1) + '. ' + p.name + ' ' + total(p) + ' (' + diffLabel(diff(p)).replace('−', '-') + ')'];
+      if (aces(p)) { bits.push(aces(p) + (aces(p) === 1 ? ' ace' : ' aces')); }
+      if (played(p) < R.holes) { bits.push('thru ' + played(p)); }
+      lines.push(bits.join(' · '));
+    });
+    return lines.join('\n');
+  }
+
+  function renderSummary() {
+    var live = R.players.filter(function (p) { return played(p) > 0; });
+    var out = holeOutcomes();
+
+    $('sumEyebrow').textContent =
+      (R.done ? 'ROUND COMPLETE' : 'ROUND SO FAR') + ' · ' + R.holes + ' HOLES · COURSE PAR ' + (R.par * R.holes);
+
+    if (!live.length) {
+      $('sumWho').textContent = 'NO SCORES YET';
+      $('sumSub').textContent = 'NOTHING CAPTURED';
+      $('sumBig').textContent = '–';
+    } else {
+      var best = Math.min.apply(null, live.map(total));
+      var winners = live.filter(function (p) { return total(p) === best; });
+      var names = winners.map(function (p) { return esc(p.name.toUpperCase()); });
+      if (winners.length === 1) {
+        $('sumWho').innerHTML = names[0] + '<br>WINS';
+      } else {
+        $('sumWho').innerHTML = names.slice(0, -1).join(', ') + ' &amp; ' + names[names.length - 1] + '<br>TIE';
+      }
+      var d = diff(winners[0]);
+      var sub = [d === 0 ? 'LEVEL WITH PAR' : (d > 0 ? '+' + d + ' OVER PAR' : Math.abs(d) + ' UNDER PAR')];
+      if (aces(winners[0])) { sub.push(aces(winners[0]) + (aces(winners[0]) === 1 ? ' ACE' : ' ACES')); }
+      $('sumSub').textContent = sub.join(' · ');
+      $('sumBig').textContent = best;
+    }
+
+    var board = '';
+    ranked().forEach(function (p, i) {
+      var bits = [];
+      if (aces(p)) { bits.push(aces(p) + (aces(p) === 1 ? ' ACE' : ' ACES')); }
+      bits.push(out.won[p.id] + (out.won[p.id] === 1 ? ' HOLE WON' : ' HOLES WON'));
+      if (played(p) < R.holes) { bits.push('THRU ' + played(p)); }
+      board +=
+        '<div class="brow">' +
+          '<span class="pos' + (i === 0 && played(p) ? ' first' : '') + '" aria-hidden="true">' + (i + 1) + '</span>' +
+          '<span class="bwho"><b>' + esc(p.name) + '</b><span>' + bits.join(' · ') + '</span></span>' +
+          (played(p) ? '<span class="chip ' + diffClass(diff(p)) + '">' + diffLabel(diff(p)) + '</span>' : '') +
+          '<span class="bscore">' + (played(p) ? total(p) : '–') + '</span>' +
+        '</div>';
+    });
+    $('board').innerHTML = board;
+
+    var allAces = R.players.reduce(function (a, p) { return a + aces(p); }, 0);
+    var avg = live.length ? (live.reduce(function (a, p) { return a + total(p); }, 0) / live.length) : 0;
+    $('tiles').innerHTML =
+      '<div class="tile"><b>' + allAces + '</b><span>ACES IN<br>THE ROUND</span></div>' +
+      '<div class="tile"><b>' + out.tied + '</b><span>HOLES<br>TIED</span></div>' +
+      '<div class="tile"><b>' + (live.length ? avg.toFixed(1) : '–') + '</b><span>AVERAGE<br>TOTAL</span></div>';
+
+    var missing = R.players.some(function (p) { return played(p) < R.holes; });
+    $('sumNote').textContent = missing
+      ? 'Some holes are still blank. Totals and par differences count only the holes played.'
+      : 'Every hole captured. Lowest total wins.';
+  }
+
+  /* ---------- copy ---------- */
+  function copyText(text, btn) {
+    var label = btn.textContent;
+    function ok() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = label; }, 1600); }
+    function manual() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', 'readonly');
+      ta.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;height:38%;z-index:9;font-family:var(--mono);font-size:12px;padding:10px;border-radius:10px;border:1px solid var(--line)';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      btn.textContent = 'Copy from the box';
+      setTimeout(function () { ta.remove(); btn.textContent = label; }, 9000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok).catch(manual);
+    } else { manual(); }
+  }
+
+  /* ---------- QR ---------- */
+  function renderQR() {
+    if (!APP_URL) {
+      $('urltext').textContent = 'Open this page from its web address to get a QR code for it.';
+      $('qrbox').hidden = true;
+      $('copyUrl').hidden = true;
+      return;
+    }
+    $('urltext').textContent = APP_URL;
+    try {
+      new window.QRCode($('qrbox'), {
+        text: APP_URL, width: 196, height: 196,
+        colorDark: '#10251A', colorLight: '#FFFFFF',
+        correctLevel: window.QRCode.CorrectLevel.M
+      });
+    } catch (e) {
+      $('qrbox').hidden = true;
+    }
+  }
+
+  /* ---------- wiring ---------- */
+  ['seg-holes', 'seg-par', 'seg-cap'].forEach(wireSeg);
+
+  $('addPlayer').addEventListener('click', function () {
+    var names = readNames();
+    if (names.length >= MAX_PLAYERS) { return; }
+    names.push('');
+    renderPlayers(names);
+    var inputs = $('players').querySelectorAll('input');
+    inputs[inputs.length - 1].focus();
+  });
+
+  $('start').addEventListener('click', startRound);
+
+  $('resumeGo').addEventListener('click', function () {
+    R = load();
+    if (!R) { renderResume(); return; }
+    if (R.done) { renderSummary(); show('sum'); } else { renderPlay(); show('play'); }
+  });
+  $('resumeDrop').addEventListener('click', function () { wipe(); renderResume(); });
+
+  $('cards').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-v]');
+    if (!b) { return; }
+    setScore(b.dataset.id, b.dataset.v);
+  });
+
+  $('prev').addEventListener('click', function () {
+    if (R.hole > 0) { R.hole -= 1; save(); renderPlay(); }
+  });
+  $('next').addEventListener('click', function () {
+    if (R.hole < R.holes - 1) {
+      R.hole += 1; save(); renderPlay();
+      document.querySelector('#s-play .scroll').scrollTop = 0;
+    } else {
+      R.done = true; save(); renderSummary(); show('sum');
+    }
+  });
+
+  $('toCard').addEventListener('click', function () { cardFrom = 'play'; renderCard(); show('card'); });
+  $('sumCard').addEventListener('click', function () { cardFrom = 'sum'; renderCard(); show('card'); });
+  $('cardBack').addEventListener('click', function () {
+    if (cardFrom === 'sum') { renderSummary(); show('sum'); } else { renderPlay(); show('play'); }
+  });
+  $('cardCopy').addEventListener('click', function () { copyText(resultsText(), this); });
+  $('cardBody').addEventListener('click', function (e) {
+    var c = e.target.closest('.cell[data-hole]');
+    if (!c) { return; }
+    R.hole = parseInt(c.dataset.hole, 10);
+    R.done = false;
+    save();
+    renderPlay();
+    show('play');
+  });
+
+  $('sumEdit').addEventListener('click', function () { R.done = false; save(); renderPlay(); show('play'); });
+  $('sumNew').addEventListener('click', function () {
+    renderPlayers(R.players.map(function (p) { return p.name; }));
+    $('course').value = R.course || '';
+    wipe();
+    R = null;
+    renderResume();
+    show('setup');
+  });
+
+  $('copyUrl').addEventListener('click', function () { copyText(APP_URL, this); });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && !$('s-play').hidden) { keepAwake(); }
+  });
+
+  /* ---------- boot ---------- */
+  renderPlayers(['', '']);
+  renderResume();
+  renderQR();
+  show('setup');
+})();
+</script>
+</body>
+</html>
