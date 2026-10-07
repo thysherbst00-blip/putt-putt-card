@@ -16,7 +16,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Hanken+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* Layout: one-screen phone app - dark turf top bar, scrolling body, action bar pinned at the foot */
 :root{
@@ -170,10 +169,6 @@ button{cursor:pointer}
 .legend span{display:flex;align-items:center;gap:6px}
 .sw{width:14px;height:14px;border-radius:4px;display:inline-block}
 
-.qrwrap{display:flex;flex-direction:column;gap:11px;align-items:center}
-.qrbox{background:#FFFFFF;padding:12px;border-radius:12px;line-height:0}
-.qrbox img,.qrbox canvas{display:block;width:196px;height:196px}
-.urltext{font-family:var(--mono);font-size:11px;color:var(--ink-soft);word-break:break-all;text-align:center}
 </style>
 </head>
 <body>
@@ -246,16 +241,6 @@ button{cursor:pointer}
         </div>
         <div id="players" style="display:flex;flex-direction:column;gap:9px"></div>
         <button class="add" id="addPlayer" type="button">+ Add player</button>
-      </div>
-
-      <div class="card pad">
-        <span class="lbl">SHARE THE CARD</span>
-        <p class="note">Point a phone camera at this code to open the scorecard. Print it, or keep it at the kiosk.</p>
-        <div class="qrwrap">
-          <div class="qrbox" id="qrbox"></div>
-          <div class="urltext" id="urltext"></div>
-          <button class="btn ghost small" id="copyUrl" type="button" style="width:auto;padding:0 18px">Copy link</button>
-        </div>
       </div>
     </div>
 
@@ -351,11 +336,6 @@ button{cursor:pointer}
 (function () {
   'use strict';
 
-  /* The page works out its own address, so the QR code is right on any host. */
-  var APP_URL = (function () {
-    if (location.protocol === 'file:') { return ''; }
-    return (location.origin + location.pathname).replace(/\/index\.html$/, '/');
-  })();
   var LS = 'puttputt.round.v1';
   var MAX_PLAYERS = 8;
   var R = null;
@@ -756,26 +736,6 @@ button{cursor:pointer}
     } else { manual(); }
   }
 
-  /* ---------- QR ---------- */
-  function renderQR() {
-    if (!APP_URL) {
-      $('urltext').textContent = 'Open this page from its web address to get a QR code for it.';
-      $('qrbox').hidden = true;
-      $('copyUrl').hidden = true;
-      return;
-    }
-    $('urltext').textContent = APP_URL;
-    try {
-      new window.QRCode($('qrbox'), {
-        text: APP_URL, width: 196, height: 196,
-        colorDark: '#10251A', colorLight: '#FFFFFF',
-        correctLevel: window.QRCode.CorrectLevel.M
-      });
-    } catch (e) {
-      $('qrbox').hidden = true;
-    }
-  }
-
   /* ---------- wiring ---------- */
   ['seg-holes', 'seg-par', 'seg-cap'].forEach(wireSeg);
 
@@ -841,8 +801,6 @@ button{cursor:pointer}
     show('setup');
   });
 
-  $('copyUrl').addEventListener('click', function () { copyText(APP_URL, this); });
-
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible' && !$('s-play').hidden) { keepAwake(); }
   });
@@ -850,7 +808,6 @@ button{cursor:pointer}
   /* ---------- boot ---------- */
   renderPlayers(['', '']);
   renderResume();
-  renderQR();
   show('setup');
 })();
 </script>

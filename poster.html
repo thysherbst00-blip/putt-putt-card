@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scorecard QR Poster</title>
+<meta name="description" content="Printable sign for the first tee: scan the code to open the putt putt scorecard.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Hanken+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* A sign for the first tee: deep band, big code, three steps. Paper-first, so one light palette only. */
+:root{
+  color-scheme: light;
+  --paper:#FFFFFF; --ground:#EEF2EA; --ink:#10251A; --ink-soft:#5C6F62; --line:#D7E2D8;
+  --deep:#0F3D2E; --turf:#1C7A4D; --flag:#C9431C; --ball:#F4C13D;
+  --display:'Bowlby One SC', Impact, system-ui, sans-serif;
+  --body:'Hanken Grotesk', 'Avenir Next', system-ui, sans-serif;
+  --mono:'DM Mono', ui-monospace, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;
+     padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));
+     display:flex;flex-direction:column;align-items:center;gap:16px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
+
+.controls{width:100%;max-width:430px;display:flex;flex-direction:column;gap:9px}
+.controls label{font-family:var(--mono);font-size:9.5px;letter-spacing:1.6px;color:var(--ink-soft)}
+.controls input{height:46px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:var(--paper);font-size:16px;width:100%}
+.controls .go{height:50px;border:none;border-radius:25px;background:var(--flag);color:#FFFFFF;font-size:16px;font-weight:700;width:100%}
+.controls p{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.45}
+
+.sheet{width:100%;max-width:430px;background:var(--paper);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.band{background:var(--deep);color:#FFFFFF;padding:18px 22px;display:flex;align-items:center;gap:12px}
+.band .nm{font-family:var(--display);font-size:20px;line-height:1;letter-spacing:.3px}
+.band .sb{font-family:var(--mono);font-size:9.5px;letter-spacing:2.4px;color:var(--ball);margin-top:3px}
+.body{padding:26px 22px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.shout{font-family:var(--display);font-size:38px;line-height:.95;margin:0}
+.venue{font-family:var(--mono);font-size:12px;letter-spacing:1.4px;color:var(--turf);text-transform:uppercase;min-height:16px}
+.code{background:#FFFFFF;padding:10px;border:1px solid var(--line);border-radius:14px;line-height:0}
+.code img,.code canvas{display:block;width:260px;height:260px;max-width:100%}
+.url{font-family:var(--mono);font-size:11px;color:var(--ink-soft);word-break:break-all}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px;text-align:left;width:100%}
+.steps li{display:flex;align-items:flex-start;gap:11px;font-size:14.5px;line-height:1.4}
+.steps .n{width:26px;height:26px;flex:none;border-radius:50%;background:var(--turf);color:#FFFFFF;font-family:var(--mono);font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.foot{border-top:1px solid var(--line);padding:13px 22px;font-size:12px;color:var(--ink-soft);text-align:center}
+.miss{font-size:13px;color:var(--flag);line-height:1.45}
+
+@media print{
+  @page{margin:14mm}
+  body{background:#FFFFFF;padding:0;gap:0;display:block}
+  .controls{display:none}
+  .sheet{max-width:none;border:none;border-radius:0}
+  .band{padding:0 0 14px;background:#FFFFFF;color:var(--ink)}
+  .band .sb{color:var(--turf)}
+  .body{padding:14px 0 0}
+  .shout{font-size:46px}
+  .code{border-color:#000000}
+  .code img,.code canvas{width:300px;height:300px}
+  .foot{padding:16px 0 0}
+}
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <label for="venue">COURSE NAME ON THE SIGN (OPTIONAL)</label>
+  <input id="venue" type="text" placeholder="e.g. Blue Lagoon Putt Putt" autocomplete="off">
+  <button class="go" id="print" type="button">Print this sign</button>
+  <p>Print it, or just show this screen at the first tee. Players scan it and the scorecard opens on their own phone.</p>
+</div>
+
+<div class="sheet">
+  <div class="band">
+    <svg width="34" height="34" viewBox="0 0 30 30" aria-hidden="true">
+      <ellipse cx="15" cy="24" rx="9.5" ry="3.4" fill="#06221A" stroke="#F4C13D" stroke-width="1.4"/>
+      <path d="M13.5 23.5 V5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M14.4 5.8 L24 9 L14.4 12.4 Z" fill="#E2562B"/>
+      <circle cx="22.6" cy="22.2" r="3.1" fill="currentColor"/>
+    </svg>
+    <div>
+      <div class="nm">PUTT PUTT</div>
+      <div class="sb">SCORECARD</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <h1 class="shout">SCAN TO<br>SCORE</h1>
+    <div class="venue" id="venueOut"></div>
+    <div class="code" id="code"></div>
+    <div class="url" id="url"></div>
+    <ol class="steps">
+      <li><span class="n" aria-hidden="true">1</span><span>Point your phone camera at the code.</span></li>
+      <li><span class="n" aria-hidden="true">2</span><span>Type in the players&#39; names.</span></li>
+      <li><span class="n" aria-hidden="true">3</span><span>Tap the strokes each player took on every hole.</span></li>
+    </ol>
+  </div>
+
+  <div class="foot">Nothing to install. One phone keeps the card for the group.</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var VENUE_KEY = 'puttputt.venue.v1';
+
+  function $(id) { return document.getElementById(id); }
+
+  var target = (function () {
+    if (location.protocol === 'file:') { return ''; }
+    return (location.origin + location.pathname).replace(/poster\.html$/, '');
+  })();
+
+  if (!target) {
+    $('url').innerHTML = '<span class="miss">Open this page from its web address, not as a local file, so the code can point somewhere.</span>';
+  } else {
+    $('url').textContent = target.replace(/^https?:\/\//, '');
+    try {
+      new window.QRCode($('code'), {
+        text: target, width: 260, height: 260,
+        colorDark: '#000000', colorLight: '#FFFFFF',
+        correctLevel: window.QRCode.CorrectLevel.H
+      });
+    } catch (e) {
+      $('code').innerHTML = '<span class="miss">The code could not be drawn. Check the connection and reload the page.</span>';
+    }
+  }
+
+  function paint(v) { $('venueOut').textContent = v.trim(); }
+
+  try {
+    var saved = localStorage.getItem(VENUE_KEY);
+    if (saved) { $('venue').value = saved; paint(saved); }
+  } catch (e) {}
+
+  $('venue').addEventListener('input', function () {
+    paint(this.value);
+    try { localStorage.setItem(VENUE_KEY, this.value); } catch (e) {}
+  });
+
+  $('print').addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>

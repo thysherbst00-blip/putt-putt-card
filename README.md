@@ -12,14 +12,15 @@ phone that is scoring, so it keeps working when the signal does not.
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | The whole app: markup, styles and logic in one file. |
+| `index.html` | The scorecard itself: markup, styles and logic in one file. |
+| `poster.html` | The printable sign for the first tee, holding the QR code. |
 | `icon.svg` | Favicon and home-screen icon. |
 | `manifest.webmanifest` | Lets the page be added to a phone's home screen. |
 | `.nojekyll` | Tells GitHub Pages to serve the files as they are. |
 
-There is no build step and no package manager. Dependencies are two CDN
-requests: Google Fonts for the typefaces, and `qrcodejs` to draw the QR code
-on the set-up screen.
+There is no build step and no package manager. The scorecard pulls one thing
+off a CDN, Google Fonts for the typefaces. The poster also loads `qrcodejs` to
+draw the code.
 
 ## Running it locally
 
@@ -43,6 +44,18 @@ The site is static, so GitHub Pages serves it straight from the default branch:
 The page reads its own address at runtime and draws the QR code from that, so
 there is no URL to configure. Screenshot or print that code and it will open
 the live site on any phone.
+
+## The sign at the first tee
+
+`poster.html` is what players see on arrival. It draws a QR code for the
+scorecard, adds the three steps, and prints onto one page. Open it, type the
+course name if you want it on the sign, and print it or just show the screen.
+
+The code is built from the page's own address at runtime, so it always points
+at the scorecard sitting beside it. Move the site and the code follows.
+
+The scorecard itself carries no QR code. Nobody scans a code on a page they
+could only reach by scanning it.
 
 ## How a round is stored
 
