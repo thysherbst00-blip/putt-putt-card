@@ -1,39 +1,51 @@
 # Putt Putt Scorecard
 
-**Live:** <https://putt-putt-card.pages.dev/> — the sign to print is at
-<https://putt-putt-card.pages.dev/poster.html>
+**Live:** <https://putt-putt-card.pages.dev/> — signs are issued at
+<https://putt-putt-card.pages.dev/admin>, which only the owner can open.
 
 A one-page scorecard for putt putt / adventure golf. You scan a QR code at the
 first tee, enter the players' names, then tap the strokes each of them took on
 each hole. It keeps the running totals, the difference against course par, and
 at the end it shows the winner and the full card.
 
-No sign-in, no accounts, no server. The round lives in the browser on the
-phone that is scoring, so it keeps working when the signal does not.
+Players need no sign-in and no account. The round lives in the browser on the
+phone that is scoring, so it keeps working when the signal does not. The only
+server-side part is the gate: the scorecard opens for a dated code and refuses
+once that code lapses.
 
 ## What is in here
 
 | File | Purpose |
 | --- | --- |
 | `index.html` | The scorecard itself: markup, styles and logic in one file. |
-| `poster.html` | The printable sign for the first tee, holding the QR code. |
+| `admin.html` | Issues a dated code and prints the sign that carries it. |
+| `functions/_middleware.js` | Checks the code before the scorecard is served. |
+| `functions/api/token.js` | Signs a new code. Refuses callers who are not the owner. |
 | `icon.svg` | Favicon and home-screen icon. |
 | `manifest.webmanifest` | Lets the page be added to a phone's home screen. |
 | `.nojekyll` | Tells GitHub Pages to serve the files as they are. |
 
 There is no build step and no package manager. The scorecard pulls one thing
-off a CDN, Google Fonts for the typefaces. The poster also loads `qrcodejs` to
-draw the code.
+off a CDN, Google Fonts for the typefaces. The sign generator also loads
+`qrcodejs` to draw the code. The two files under `functions/` run on Cloudflare
+rather than in the browser, and Pages picks them up on its own.
 
 ## Running it locally
 
-Open it over HTTP rather than as a `file://` path, so the manifest and the QR
-code behave the way they will in production:
+The gate runs on Cloudflare, so a plain file server will not exercise it. Use
+Wrangler, which runs the functions the way production does:
 
 ```sh
 cd putt-putt-card
+npx wrangler pages dev . --binding QR_SIGNING_KEY=local-test ADMIN_KEY=local-admin
+# then open the address it prints
+```
+
+For a look at the scorecard alone, any static server will do, and the gate
+simply stays open because no signing key is set:
+
+```sh
 python -m http.server 8000
-# then open http://localhost:8000
 ```
 
 ## Deploying
@@ -65,17 +77,57 @@ Both pages work out their own address at runtime, so the code on the sign
 always points at the scorecard sitting beside it. Moving hosts, or putting a
 custom domain in front, needs no edit anywhere.
 
-## The sign at the first tee
+## The sign, and who may issue one
 
-`poster.html` is what players see on arrival. It draws a QR code for the
-scorecard, adds the three steps, and prints onto one page. Open it, type the
-course name if you want it on the sign, and print it or just show the screen.
+`/admin` mints a code and lays out the sign that carries it: choose how long it
+stays valid, type the course name, print. The scorecard itself carries no QR
+code, because nobody scans a code on a page they could only reach by scanning
+it.
 
-The code is built from the page's own address at runtime, so it always points
-at the scorecard sitting beside it. Move the site and the code follows.
+### How the gate works
 
-The scorecard itself carries no QR code. Nobody scans a code on a page they
-could only reach by scanning it.
+The code embeds a token: an expiry timestamp plus an HMAC-SHA256 signature over
+it. `functions/_middleware.js` recomputes that signature before serving the
+scorecard and refuses anything forged or lapsed, with a page telling the player
+to ask at the kiosk. The signing key lives in a Cloudflare environment variable,
+so it is in neither the repository nor anything sent to a browser. That is what
+makes the limit real rather than decorative: a check written in page JavaScript
+could be stepped around by anyone who opened the developer tools.
+
+One scan covers the round. A valid token sets a 12-hour pass cookie, capped at
+the token's own life, so reopening a closed tab mid-round does not mean
+fetching the sign again.
+
+### Setting it up
+
+In the Cloudflare dashboard, under the Pages project → **Settings** →
+**Variables and secrets**, add two encrypted values:
+
+| Name | Value |
+| --- | --- |
+| `QR_SIGNING_KEY` | A long random string. Signs and verifies codes. |
+| `ADMIN_KEY` | A second random string. You type this into `/admin` to issue codes. |
+
+Redeploy afterwards; environment variables only reach a new deployment.
+
+Optionally add `ADMIN_EMAIL` and put **Cloudflare Access** in front of `/admin*`
+and `/api/*` (Zero Trust → Access → Applications → Self-hosted, with a policy
+allowing that one email). Then issuing a code needs a real login rather than a
+typed key. Worth doing if the admin key might end up on a shared machine.
+
+### Revoking
+
+Generating a code does not cancel the ones already printed; each runs to its own
+expiry. To stop every outstanding code at once, change `QR_SIGNING_KEY` and
+redeploy. Signatures made with the old key stop verifying immediately, so print
+a fresh sign straight after.
+
+### Before it is configured
+
+With no `QR_SIGNING_KEY` set, the gate stays open and the scorecard serves to
+anyone, so a half-finished setup does not take the site down. Issuing codes
+fails closed in the same situation: `/api/token` refuses until both the signing
+key and an owner check exist.
 
 ## How a round is stored
 
@@ -106,5 +158,8 @@ their strokes. Consequences worth knowing:
 - **Work offline on a cold load.** The round survives offline, but a first
   visit with no signal gets no fonts and no QR code. A service worker would fix
   that.
-- **Share one live card between phones.** That needs a server and a database.
-- **Store anything server-side.** There is no back end to store it in.
+- **Share one live card between phones.** That needs a database; the functions
+  here hold no state at all.
+- **Keep any record of a round.** Scores never leave the phone that typed them.
+- **Track who scanned what.** A token says when it lapses and nothing else: no
+  identifier, no counter, no log of who played.

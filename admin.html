@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Issue a Scorecard Sign</title>
+<meta name="description" content="Mint a dated code for the putt putt scorecard and print the sign that carries it.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Hanken+Grotesk:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Two things stacked: the controls that mint a code, and the sheet that prints. Paper-first, so one light palette. */
+:root{
+  color-scheme: light;
+  --paper:#FFFFFF; --ground:#EEF2EA; --ink:#10251A; --ink-soft:#5C6F62; --line:#D7E2D8;
+  --deep:#0F3D2E; --turf:#1C7A4D; --flag:#C9431C; --ball:#F4C13D;
+  --warn-bg:#FBE1D7; --warn-ink:#8E2F13;
+  --display:'Bowlby One SC', Impact, system-ui, sans-serif;
+  --body:'Hanken Grotesk', 'Avenir Next', system-ui, sans-serif;
+  --mono:'DM Mono', ui-monospace, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;
+     padding:24px 16px calc(28px + env(safe-area-inset-bottom,0px));
+     display:flex;flex-direction:column;align-items:center;gap:18px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
+
+.panel{width:100%;max-width:430px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:13px}
+.panel h2{font-family:var(--mono);font-size:9.5px;letter-spacing:1.6px;color:var(--ink-soft);margin:0;font-weight:400}
+.panel label{font-size:13.5px;font-weight:600}
+.panel input[type="text"],.panel input[type="password"],.panel input[type="number"]{height:46px;padding:0 13px;border:1px solid var(--line);border-radius:11px;background:var(--paper);font-size:16px;width:100%}
+.field{display:flex;flex-direction:column;gap:7px}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chips button{min-width:56px;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:14.5px;font-weight:600;color:var(--ink-soft)}
+.chips button[aria-pressed="true"]{background:var(--turf);border-color:var(--turf);color:#FFFFFF;font-weight:700}
+.go{height:52px;border:none;border-radius:26px;background:var(--flag);color:#FFFFFF;font-size:16.5px;font-weight:700;width:100%}
+.go[disabled]{opacity:.5}
+.ghost{height:46px;border:1px solid var(--line);border-radius:23px;background:var(--paper);font-size:15px;font-weight:600;width:100%}
+.hint{margin:0;font-size:12.5px;color:var(--ink-soft);line-height:1.45}
+.remember{display:flex;align-items:center;gap:9px;font-size:13.5px}
+.remember input{width:20px;height:20px}
+.alert{border-radius:12px;padding:12px 13px;font-size:13.5px;line-height:1.45;background:var(--warn-bg);color:var(--warn-ink)}
+.alert[hidden]{display:none}
+.ok{background:#DCEBE0;color:#0F5A37}
+
+.sheet{width:100%;max-width:430px;background:var(--paper);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.band{background:var(--deep);color:#FFFFFF;padding:18px 22px;display:flex;align-items:center;gap:12px}
+.band .nm{font-family:var(--display);font-size:20px;line-height:1;letter-spacing:.3px}
+.band .sb{font-family:var(--mono);font-size:9.5px;letter-spacing:2.4px;color:var(--ball);margin-top:3px}
+.body{padding:26px 22px 24px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.shout{font-family:var(--display);font-size:38px;line-height:.95;margin:0}
+.venue{font-family:var(--mono);font-size:12px;letter-spacing:1.4px;color:var(--turf);text-transform:uppercase;min-height:16px}
+.code{background:#FFFFFF;padding:10px;border:1px solid var(--line);border-radius:14px;line-height:0;min-width:140px;min-height:140px;display:flex;align-items:center;justify-content:center}
+.code img,.code canvas{display:block;width:260px;height:260px;max-width:100%}
+.waiting{font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--ink-soft);max-width:180px}
+.url{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);word-break:break-all}
+.until{font-family:var(--mono);font-size:11.5px;letter-spacing:.6px;color:var(--flag);min-height:16px}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px;text-align:left;width:100%}
+.steps li{display:flex;align-items:flex-start;gap:11px;font-size:14.5px;line-height:1.4}
+.steps .n{width:26px;height:26px;flex:none;border-radius:50%;background:var(--turf);color:#FFFFFF;font-family:var(--mono);font-size:12px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.foot{border-top:1px solid var(--line);padding:13px 22px;font-size:12px;color:var(--ink-soft);text-align:center}
+
+@media print{
+  @page{margin:14mm}
+  body{background:#FFFFFF;padding:0;gap:0;display:block}
+  .panel,.noprint{display:none !important}
+  .sheet{max-width:none;border:none;border-radius:0}
+  .band{padding:0 0 14px;background:#FFFFFF;color:var(--ink)}
+  .band .sb{color:var(--turf)}
+  .body{padding:14px 0 0}
+  .shout{font-size:46px}
+  .code{border-color:#000000}
+  .code img,.code canvas{width:300px;height:300px}
+  .foot{padding:16px 0 0}
+}
+</style>
+</head>
+<body>
+
+<div class="panel noprint">
+  <h2>ISSUE A CODE</h2>
+
+  <div class="alert" id="alert" hidden></div>
+
+  <div class="field">
+    <label for="key">Admin key</label>
+    <input id="key" type="password" autocomplete="current-password" placeholder="The key set in Cloudflare">
+    <label class="remember"><input id="remember" type="checkbox"> Remember it on this device</label>
+  </div>
+
+  <div class="field">
+    <label for="days">Valid for</label>
+    <div class="chips" id="chips" role="group" aria-label="How long the code stays valid">
+      <button type="button" data-d="1" aria-pressed="false">1 day</button>
+      <button type="button" data-d="7" aria-pressed="true">7 days</button>
+      <button type="button" data-d="30" aria-pressed="false">30 days</button>
+      <button type="button" data-d="90" aria-pressed="false">90 days</button>
+    </div>
+    <input id="days" type="number" min="1" max="365" step="1" value="7" aria-label="Days the code stays valid">
+  </div>
+
+  <div class="field">
+    <label for="venue">Course name on the sign (optional)</label>
+    <input id="venue" type="text" placeholder="e.g. Blue Lagoon Putt Putt" autocomplete="off">
+  </div>
+
+  <button class="go" id="make" type="button">Generate the sign</button>
+  <button class="ghost" id="print" type="button" disabled>Print this sign</button>
+
+  <p class="hint">Each code is signed and dated on the server. When it lapses the
+  scorecard refuses to open and players are told to ask at the kiosk. Generating
+  a new one does not cancel codes already out there &mdash; they run out on their
+  own. To kill every code at once, change <code>QR_SIGNING_KEY</code> in the
+  Cloudflare dashboard.</p>
+</div>
+
+<div class="sheet">
+  <div class="band">
+    <svg width="34" height="34" viewBox="0 0 30 30" aria-hidden="true">
+      <ellipse cx="15" cy="24" rx="9.5" ry="3.4" fill="#06221A" stroke="#F4C13D" stroke-width="1.4"/>
+      <path d="M13.5 23.5 V5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M14.4 5.8 L24 9 L14.4 12.4 Z" fill="#E2562B"/>
+      <circle cx="22.6" cy="22.2" r="3.1" fill="currentColor"/>
+    </svg>
+    <div>
+      <div class="nm">PUTT PUTT</div>
+      <div class="sb">SCORECARD</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <h1 class="shout">SCAN TO<br>SCORE</h1>
+    <div class="venue" id="venueOut"></div>
+    <div class="code" id="code"><span class="waiting">The code appears here once you generate it.</span></div>
+    <div class="url" id="url"></div>
+    <div class="until" id="until"></div>
+    <ol class="steps">
+      <li><span class="n" aria-hidden="true">1</span><span>Point your phone camera at the code.</span></li>
+      <li><span class="n" aria-hidden="true">2</span><span>Type in the players&#39; names.</span></li>
+      <li><span class="n" aria-hidden="true">3</span><span>Tap the strokes each player took on every hole.</span></li>
+    </ol>
+  </div>
+
+  <div class="foot">Nothing to install. One phone keeps the card for the group.</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY_STORE = 'puttputt.adminkey.v1';
+  var VENUE_KEY = 'puttputt.venue.v1';
+
+  function $(id) { return document.getElementById(id); }
+
+  function say(message, good) {
+    var box = $('alert');
+    if (!message) { box.hidden = true; return; }
+    box.hidden = false;
+    box.className = 'alert' + (good ? ' ok' : '');
+    box.textContent = message;
+  }
+
+  function paintVenue(v) { $('venueOut').textContent = v.trim(); }
+
+  /* remembered bits */
+  try {
+    var savedKey = localStorage.getItem(KEY_STORE);
+    if (savedKey) { $('key').value = savedKey; $('remember').checked = true; }
+    var savedVenue = localStorage.getItem(VENUE_KEY);
+    if (savedVenue) { $('venue').value = savedVenue; paintVenue(savedVenue); }
+  } catch (e) {}
+
+  $('venue').addEventListener('input', function () {
+    paintVenue(this.value);
+    try { localStorage.setItem(VENUE_KEY, this.value); } catch (e) {}
+  });
+
+  $('chips').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) { return; }
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function (x) {
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    $('days').value = b.dataset.d;
+  });
+
+  $('days').addEventListener('input', function () {
+    var v = this.value;
+    Array.prototype.forEach.call($('chips').querySelectorAll('button'), function (x) {
+      x.setAttribute('aria-pressed', String(x.dataset.d === v));
+    });
+  });
+
+  function when(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) { return ''; }
+    var date = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    var time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return 'VALID UNTIL ' + date.toUpperCase() + ', ' + time;
+  }
+
+  function draw(url) {
+    var box = $('code');
+    box.innerHTML = '';
+    try {
+      new window.QRCode(box, {
+        text: url, width: 260, height: 260,
+        colorDark: '#000000', colorLight: '#FFFFFF',
+        correctLevel: window.QRCode.CorrectLevel.H
+      });
+      return true;
+    } catch (e) {
+      box.innerHTML = '<span class="waiting">The code could not be drawn. Check the connection and reload.</span>';
+      return false;
+    }
+  }
+
+  $('make').addEventListener('click', function () {
+    var key = $('key').value.trim();
+    var days = parseInt($('days').value, 10);
+    if (!Number.isFinite(days) || days < 1 || days > 365) {
+      say('Pick a length between 1 and 365 days.');
+      return;
+    }
+
+    try {
+      if ($('remember').checked && key) { localStorage.setItem(KEY_STORE, key); }
+      else { localStorage.removeItem(KEY_STORE); }
+    } catch (e) {}
+
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    say('');
+
+    fetch('/api/token?days=' + days, {
+      headers: key ? { 'X-Admin-Key': key } : {},
+      cache: 'no-store'
+    }).then(function (res) {
+      return res.json().catch(function () {
+        throw new Error(res.status === 302 || res.status === 401
+          ? 'Sign in to Cloudflare Access first, then try again.'
+          : 'The server answered with something unreadable (status ' + res.status + ').');
+      }).then(function (data) {
+        if (!res.ok) { throw new Error(data.error || 'Request refused (status ' + res.status + ').'); }
+        return data;
+      });
+    }).then(function (data) {
+      $('url').textContent = data.url.replace(/^https?:\/\//, '');
+      $('until').textContent = when(data.expires);
+      if (draw(data.url)) {
+        $('print').disabled = false;
+        say('Code issued. It works for ' + data.days + (data.days === 1 ? ' day.' : ' days.'), true);
+      }
+    }).catch(function (err) {
+      say(err.message || 'Could not issue a code.');
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = 'Generate the sign';
+    });
+  });
+
+  $('print').addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>
