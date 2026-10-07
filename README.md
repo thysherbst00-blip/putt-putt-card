@@ -35,15 +35,23 @@ python -m http.server 8000
 
 ## Deploying
 
-The site is static, so GitHub Pages serves it straight from the default branch:
+The site is static. There is nothing to build, so a host only has to serve the
+files as they are. It runs on Cloudflare Pages, which deploys on every push to
+`main`:
 
-1. Push this repo to GitHub.
-2. Settings → Pages → Source: **Deploy from a branch**, branch `main`, folder `/ (root)`.
-3. Wait for the first build, then open the URL Pages gives you.
+1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
+2. Pick this repository. Production branch `main`.
+3. Framework preset **None**, build command **empty**, output directory **`/`**.
+4. Save and deploy. The site lands on `<project-name>.pages.dev`.
 
-The page reads its own address at runtime and draws the QR code from that, so
-there is no URL to configure. Screenshot or print that code and it will open
-the live site on any phone.
+The address matters here: it is what players read in their browser after
+scanning, so it is deliberately a project name rather than a personal GitHub
+handle. If GitHub Pages was ever switched on for this repo, switch it off
+(Settings → Pages → Source: None) so only one address serves the site.
+
+Both pages work out their own address at runtime, so the code on the sign
+always points at the scorecard sitting beside it. Moving hosts, or putting a
+custom domain in front, needs no edit anywhere.
 
 ## The sign at the first tee
 
